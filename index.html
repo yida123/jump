@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>狗云加速器 · DNS智能路由</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=ZCOOL+KuaiLe&family=Ma+Shan+Zheng&family=Long+Cang&display=swap">
+    <style>
+        body {
+            background-image: url('https://www.loliapi.com/acg/');
+            background-size: cover;
+            background-position: center;
+            color: #fff;
+            font-family: 'ZCOOL KuaiLe', cursive;
+            text-align: center;
+            padding-top: 20vh;
+            backdrop-filter: brightness(0.85);
+            transition: all 0.5s ease;
+        }
+        h2 {
+            font-size: 3rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.7);
+        }
+        p {
+            font-size: 1.5rem;
+            text-shadow: 1px 1px 3px rgba(0,0,0,0.6);
+        }
+    </style>
+</head>
+<body>
+    <h2>狗云加速器 · 智能路由</h2>
+    <p id="status">正在加载智能线路，请稍候...</p>
+
+    <script>
+        const fonts = ['ZCOOL KuaiLe', 'Ma Shan Zheng', 'Long Cang'];
+        const colors = ['#ff6f91', '#ff9671', '#ffc75f', '#f9f871', '#d65db1', '#845ec2', '#2c73d2', '#0081cf'];
+
+        document.body.style.fontFamily = fonts[Math.floor(Math.random() * fonts.length)];
+        document.body.style.color = colors[Math.floor(Math.random() * colors.length)];
+
+        const queryParams = new URLSearchParams(window.location.search);
+        const inviteCode = queryParams.get("code");
+
+        const domainToFetch = 'entrance.tzvpn.sbs';
+
+        async function fetchTXTRecords(domain) {
+            const url = `https://dns.alidns.com/resolve?name=${domain}&type=TXT`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                throw new Error('网络请求失败');
+            }
+
+            const data = await response.json();
+            if (!data.Answer || data.Answer.length === 0) {
+                throw new Error('无TXT记录');
+            }
+
+            const txtRecord = data.Answer[0].data.replace(/\"/g, '');
+            return txtRecord.split(' ').map(url => url.trim()).filter(u => u);
+        }
+
+        function testURL(url) {
+            return new Promise((resolve) => {
+                fetch(url, { mode: 'no-cors' })
+                    .then(() => resolve(true))
+                    .catch(() => resolve(false));
+
+                setTimeout(() => resolve(false), 3000);
+            });
+        }
+
+        async function detectAndRedirect() {
+            if (inviteCode) {
+                // 如果存在邀请码，直接跳转到注册页并附带邀请码参数
+                document.getElementById('status').innerText = `欢迎使用邀请码 ${inviteCode}，正在跳转注册页面...`;
+                window.location.href = `https://api01.dogssr.sbs/#/register?code=${inviteCode}`;
+                return;
+            }
+
+            try {
+                const urls = await fetchTXTRecords(domainToFetch);
+                document.getElementById('status').innerText = '正在检测线路...';
+
+                for (const url of urls) {
+                    const reachable = await testURL(url);
+                    if (reachable) {
+                        document.getElementById('status').innerText = '检测到可用线路，即将跳转...';
+                        window.location.href = url;
+                        return;
+                    }
+                }
+
+                document.getElementById('status').innerText = '所有线路均不可用，请联系管理员';
+            } catch (error) {
+                console.error(error);
+                document.getElementById('status').innerText = '加载线路失败，请检查DNS设置';
+            }
+        }
+
+        window.onload = detectAndRedirect;
+    </script>
+</body>
+</html>
